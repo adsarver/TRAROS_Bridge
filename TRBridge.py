@@ -38,8 +38,7 @@ class TRAgent(Node):
                 memory_stride=5
             )
         
-        self.model = self.transfer_weights("actor_BrandsHatch.pt", model).to(self.device)
-        self.model.eval()
+        self.model = torch.jit.load('actor_BrandsHatch_jit.pt').to(self.device)
         
         self.actor_lstm_buffer = [self.model.create_observation_buffer(1, self.device)]
         self.actor_hidden = [self.model.get_init_hidden(1, self.device, transpose=True)]
@@ -123,13 +122,18 @@ class TRAgent(Node):
         return network
 
 def main(args=None):
-    rclpy.init(args=args)
-    minimal_publisher = TRAgent()
-    rclpy.spin(minimal_publisher)
-    # Destroy the node explicitly
-    # (optional - otherwise it's done automatically when the garbage collector runs)
-    minimal_publisher.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.init(args=args)
+        minimal_publisher = TRAgent()
+        rclpy.spin(minimal_publisher)
+        minimal_publisher.destroy_node()
+        rclpy.shutdown()
+    except KeyboardInterrupt:
+        drive_msg = AckermannDriveStamped()
+        drive_msg.drive.steering_angle = 0.0
+        drive_msg.drive.speed = 0.0
+        minimal_publisher.drive.publish(drive_msg)
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
